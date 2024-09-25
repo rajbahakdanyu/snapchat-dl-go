@@ -13,14 +13,14 @@ var rootCmd = &cobra.Command{
 	Short: "Snapchat-dl is a tool to download Snapchat videos",
 	Long:  "Snapchat-dl is a tool to download Snapchat videos",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Hello World")
+		fmt.Println("Welcome to Snapchat-dl")
 	},
 }
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number of Snapchat-dl",
-	Long:  `All software has versions. This is Snapchat-dl's`,
+	Long:  "All software has versions. This is Snapchat-dl's",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Snapchat-dl v" + version)
 	},
