@@ -1,7 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"github.com/rajbahakdanyu/snapchat-dl-go/cmd"
+)
 
 func main() {
-	fmt.Println("Hello, World!")
+	cmd.Execute()
 }
