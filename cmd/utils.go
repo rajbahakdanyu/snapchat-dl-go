@@ -1,61 +1,139 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
+	"strconv"
+	"sync"
+	"time"
+
+	"github.com/spf13/cobra"
 )
 
-const baseUrl = "https://www.snapchat.com/add/"
-const regexpWebJson = `<script\s*id="__NEXT_DATA__"\s*type="application\/json">([^<]+)<\/script>`
+const (
+	baseUrl       = "https://www.snapchat.com/add/"
+	regexpWebJson = `<script\s*id="__NEXT_DATA__"\s*type="application\/json">([^<]+)<\/script>`
+)
 
-var MEDIA_TYPE = []string{"jpg", "mp4"}
+var mediaTypes = []string{"jpg", "mp4"}
 
-func checkIsError(e error) {
-	if e != nil {
-		fmt.Println("Error: ", e)
+func checkError(err error) {
+	if err != nil {
+		fmt.Println("Error:", err)
 	}
 }
 
-func alreadyExists(filePath string) (fs.FileInfo, bool) {
-	file, err := os.Stat(filePath)
-	exists := errors.Is(err, os.ErrExist)
-	return file, exists
+func fileExists(path string, expectedSize int64) bool {
+	fileInfo, err := os.Stat(path)
+	return err == nil && fileInfo.Size() == expectedSize
 }
 
 func fetchStories(userName string) (UserProfile, []SnapList, []CuratedHighlights, []SpotlightHighlights) {
 	resp, err := http.Get(baseUrl + userName)
-	checkIsError(err)
+	checkError(err)
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
-	checkIsError(err)
+	checkError(err)
 
-	expression, err := regexp.Compile(regexpWebJson)
-	checkIsError(err)
-
-	matches := expression.FindAll(body, -1)
-	if len(matches) == 0 {
+	re := regexp.MustCompile(regexpWebJson)
+	matches := re.FindSubmatch(body)
+	if len(matches) < 2 {
 		fmt.Println("No matches found")
+		return UserProfile{}, nil, nil, nil
 	}
 
-	var formattedBody []byte
-	formattedBody = bytes.TrimLeft(matches[0], `<script\s id="__NEXT_DATA__" type="application\/json">`)
-	formattedBody = bytes.TrimRight(formattedBody, "</script>")
-
 	var parsedJson SnapchatData
-	error := json.Unmarshal(formattedBody, &parsedJson)
-	checkIsError(error)
+	err = json.Unmarshal(matches[1], &parsedJson)
+	checkError(err)
 
-	var userInfo = parsedJson.Props.PageProps.UserProfile
-	var stories = parsedJson.Props.PageProps.Story.SnapList
-	var curatedHighlights = parsedJson.Props.PageProps.CuratedHighlights
-	var spotHighlights = parsedJson.Props.PageProps.SpotlightHighlights
+	return parsedJson.Props.PageProps.UserProfile,
+		parsedJson.Props.PageProps.Story.SnapList,
+		parsedJson.Props.PageProps.CuratedHighlights,
+		parsedJson.Props.PageProps.SpotlightHighlights
+}
 
-	return userInfo, stories, curatedHighlights, spotHighlights
+func runRoot(cmd *cobra.Command, args []string) {
+	userName := args[0]
+	fmt.Printf("Fetching data for %s\n", userName)
+
+	_, stories, _, _ := fetchStories(userName)
+
+	if len(stories) == 0 {
+		fmt.Printf("%s has no stories\n", userName)
+		return
+	}
+
+	var wg sync.WaitGroup
+	for _, story := range stories {
+		wg.Add(1)
+		go func(s SnapList) {
+			defer wg.Done()
+			downloadStory(s, userName)
+		}(story)
+	}
+	wg.Wait()
+}
+
+func downloadStory(story SnapList, userName string) {
+	snapId := story.SnapID.Value
+	mediaUrl := story.SnapUrls.MediaURL
+	mediaType := story.SnapMediaType
+	timestamp, _ := strconv.ParseInt(story.TimestampInSec.Value, 10, 64)
+	dateStr := time.Unix(timestamp, 0).Format("2006-01-02")
+
+	filename := fmt.Sprintf("%s_%s.%s", snapId, userName, mediaTypes[mediaType])
+	directory, err := os.Getwd()
+	checkError(err)
+
+	filePath := filepath.Join(directory, userName, dateStr, filename)
+	downloadMedia(mediaUrl, filePath, 0)
+}
+
+func downloadMedia(url, destination string, interval int) {
+	dir := filepath.Dir(destination)
+	if dir != "" {
+		err := os.MkdirAll(dir, 0755)
+		checkError(err)
+	}
+
+	time.Sleep(time.Duration(interval) * time.Second)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		fmt.Printf("Error making GET request: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Failed to download: status code %d\n", resp.StatusCode)
+		return
+	}
+
+	if fileExists(destination, resp.ContentLength) {
+		fmt.Printf("File already exists: %s\n", destination)
+		return
+	}
+
+	out, err := os.Create(destination)
+	if err != nil {
+		fmt.Printf("Error creating file: %v\n", err)
+		return
+	}
+	defer out.Close()
+
+	bytesWritten, err := io.Copy(out, resp.Body)
+	if err != nil {
+		fmt.Printf("Error writing to file: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Downloaded %s (%d bytes written)\n", destination, bytesWritten)
 }
