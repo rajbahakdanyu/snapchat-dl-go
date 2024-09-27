@@ -15,13 +15,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	baseUrl       = "https://www.snapchat.com/add/"
-	regexpWebJson = `<script\s*id="__NEXT_DATA__"\s*type="application\/json">([^<]+)<\/script>`
-)
-
-var mediaTypes = []string{"jpg", "mp4"}
-
 func checkError(err error) {
 	if err != nil {
 		fmt.Println("Error:", err)
