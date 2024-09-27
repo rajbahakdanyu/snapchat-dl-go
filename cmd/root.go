@@ -5,7 +5,10 @@ import (
 	"os"
 )
 
+var quiet bool
+
 func init() {
+	rootCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Quiet mode (Only show errors)")
 	rootCmd.AddCommand(versionCmd)
 }
 

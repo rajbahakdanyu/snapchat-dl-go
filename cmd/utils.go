@@ -60,7 +60,9 @@ func fetchStories(userName string) (UserProfile, []SnapList, []CuratedHighlights
 
 func runRoot(cmd *cobra.Command, args []string) {
 	for _, userName := range args {
-		fmt.Printf("Fetching data for %s\n", userName)
+		if !quiet {
+			fmt.Printf("Fetching data for %s\n", userName)
+		}
 
 		_, stories, _, _ := fetchStories(userName)
 
@@ -78,6 +80,9 @@ func runRoot(cmd *cobra.Command, args []string) {
 			}(story)
 		}
 		wg.Wait()
+		if !quiet {
+			fmt.Printf("Downloaded %d stories for %s\n", len(stories), userName)
+		}
 	}
 
 }
@@ -137,5 +142,7 @@ func downloadMedia(url, destination string, interval int) {
 		return
 	}
 
-	fmt.Printf("Downloaded %s (%d bytes written)\n", destination, bytesWritten)
+	if !quiet {
+		fmt.Printf("Downloaded %s (%d bytes written)\n", destination, bytesWritten)
+	}
 }
