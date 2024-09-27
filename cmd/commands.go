@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -30,6 +31,7 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
+		var wg sync.WaitGroup
 		for _, story := range stories {
 			snapId := story.SnapID.Value
 			mediaUrl := story.SnapUrls.MediaURL
@@ -44,55 +46,70 @@ var rootCmd = &cobra.Command{
 
 			filePath := fmt.Sprintf("%s/%s/%s/%s", directory, userName, dateStr, filename)
 
-			go downloadMedia(mediaUrl, filePath, 0)
+			wg.Add(1)
+			go func(url, path string) {
+				defer wg.Done()
+				downloadMedia(url, path, 0)
+			}(mediaUrl, filePath)
 		}
+		wg.Wait()
 	},
 }
 
 func downloadMedia(url string, destination string, interval int) {
 	dir := filepath.Dir(destination)
 	if len(dir) > 0 {
-		os.MkdirAll(dir, 0755)
+		err := os.MkdirAll(dir, 0755)
+		checkIsError(err)
 	}
 
-	time.Sleep(time.Duration(interval))
+	time.Sleep(time.Duration(interval) * time.Second)
 
+	fmt.Printf("Requesting %s\n", url)
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 	}
 	resp, err := client.Get(url)
-	checkIsError(err)
+	if err != nil {
+		fmt.Printf("Error making GET request: %v\n", err)
+		return
+	}
 	defer resp.Body.Close()
 
-	fmt.Printf(resp.Status)
+	fmt.Printf("Response status: %s\n", resp.Status)
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Printf("Failed to download: status code %d\n", resp.StatusCode)
 		return
 	}
 
-	file, exists := alreadyExists(destination)
+	fmt.Printf("Content-Type: %s\n", resp.Header.Get("Content-Type"))
+	fmt.Printf("Content-Length: %d bytes\n", resp.ContentLength)
 
-	if exists && file.Size() == resp.ContentLength {
-		fmt.Println("file already exists")
-		return
-	}
-
-	if exists && file.Size() == 0 {
-		err := os.Remove(destination)
-		checkIsError(err)
+	// Check if file already exists
+	if fileInfo, err := os.Stat(destination); err == nil {
+		if fileInfo.Size() == resp.ContentLength {
+			fmt.Printf("File already exists and has the correct size: %s\n", destination)
+			return
+		}
 	}
 
 	// Create the destination file
 	out, err := os.Create(destination)
-	checkIsError(err)
+	if err != nil {
+		fmt.Printf("Error creating file: %v\n", err)
+		return
+	}
 	defer out.Close()
 
 	// Copy the response body directly to the file
-	_, err = io.Copy(out, resp.Body)
-	checkIsError(err)
+	bytesWritten, err := io.Copy(out, resp.Body)
+	if err != nil {
+		fmt.Printf("Error writing to file: %v\n", err)
+		return
+	}
 
-	fmt.Println("Downloaded " + destination)
+	fmt.Printf("Downloaded %s (%d bytes written)\n", destination, bytesWritten)
 }
 
 var versionCmd = &cobra.Command{
