@@ -12,7 +12,7 @@ var rootCmd = &cobra.Command{
 	Use:   "snapchat-dl",
 	Short: "Download Snapchat videos",
 	Long:  "A tool to download Snapchat videos",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MinimumNArgs(1),
 	Run:   runRoot,
 }
 

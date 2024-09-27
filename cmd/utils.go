@@ -59,25 +59,27 @@ func fetchStories(userName string) (UserProfile, []SnapList, []CuratedHighlights
 }
 
 func runRoot(cmd *cobra.Command, args []string) {
-	userName := args[0]
-	fmt.Printf("Fetching data for %s\n", userName)
+	for _, userName := range args {
+		fmt.Printf("Fetching data for %s\n", userName)
 
-	_, stories, _, _ := fetchStories(userName)
+		_, stories, _, _ := fetchStories(userName)
 
-	if len(stories) == 0 {
-		fmt.Printf("%s has no stories\n", userName)
-		return
+		if len(stories) == 0 {
+			fmt.Printf("%s has no stories\n", userName)
+			return
+		}
+
+		var wg sync.WaitGroup
+		for _, story := range stories {
+			wg.Add(1)
+			go func(s SnapList) {
+				defer wg.Done()
+				downloadStory(s, userName)
+			}(story)
+		}
+		wg.Wait()
 	}
 
-	var wg sync.WaitGroup
-	for _, story := range stories {
-		wg.Add(1)
-		go func(s SnapList) {
-			defer wg.Done()
-			downloadStory(s, userName)
-		}(story)
-	}
-	wg.Wait()
 }
 
 func downloadStory(story SnapList, userName string) {
