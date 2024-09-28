@@ -2,10 +2,12 @@ module github.com/rajbahakdanyu/snapchat-dl-go
 
 go 1.23.1
 
-require github.com/spf13/cobra v1.8.1
+require (
+	github.com/spf13/cobra v1.8.1
+	github.com/briandowns/spinner v1.23.1
+)
 
 require (
-	github.com/briandowns/spinner v1.23.1 // indirect
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.2 // indirect
