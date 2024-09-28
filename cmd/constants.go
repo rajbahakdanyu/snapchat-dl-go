@@ -11,3 +11,4 @@ var mediaTypes = []string{"jpg", "mp4"}
 var quiet bool
 var maxStoryNum uint16
 var sleepInterval uint16
+var maxWorkers uint16

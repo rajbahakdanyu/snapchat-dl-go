@@ -73,11 +73,18 @@ func runRoot(cmd *cobra.Command, args []string) {
 			numOfStories = len(stories)
 		}
 
+		var currentWorkers = 0
 		var wg sync.WaitGroup
 		for i := 0; i < numOfStories; i++ {
+			if maxWorkers > 0 && currentWorkers >= int(maxWorkers) {
+				wg.Wait()
+			}
+
 			wg.Add(1)
+			currentWorkers += 1
 			go func(s SnapList) {
 				defer wg.Done()
+				defer func() { currentWorkers -= 1 }()
 				downloadStory(s, userName)
 			}(stories[i])
 
