@@ -62,23 +62,28 @@ func runRoot(cmd *cobra.Command, args []string) {
 
 		_, stories, _, _ := fetchStories(userName)
 
-		s.FinalMSG = fmt.Sprintf("Downloaded %d stories for %s\n", len(stories), userName)
-
 		if len(stories) == 0 {
 			s.FinalMSG = fmt.Sprintf("%s has no stories\n", userName)
 			s.Stop()
 			continue
 		}
 
+		numOfStories := int(maxStoryNum)
+		if maxStoryNum == 0 || numOfStories > len(stories) {
+			numOfStories = len(stories)
+		}
+
 		var wg sync.WaitGroup
-		for _, story := range stories {
+		for i := 0; i < numOfStories; i++ {
 			wg.Add(1)
 			go func(s SnapList) {
 				defer wg.Done()
 				downloadStory(s, userName)
-			}(story)
+			}(stories[i])
 		}
 		wg.Wait()
+
+		s.FinalMSG = fmt.Sprintf("Downloaded %d stories for %s\n", numOfStories, userName)
 		s.Stop()
 	}
 }
@@ -132,13 +137,9 @@ func downloadMedia(url, destination string, interval int) {
 	}
 	defer out.Close()
 
-	bytesWritten, err := io.Copy(out, resp.Body)
+	_, err = io.Copy(out, resp.Body)
 	if err != nil {
 		fmt.Printf("Error writing to file: %v\n", err)
 		return
-	}
-
-	if !quiet {
-		fmt.Printf("Downloaded %s (%d bytes written)\n", destination, bytesWritten)
 	}
 }

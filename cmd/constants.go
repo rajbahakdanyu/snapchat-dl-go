@@ -9,3 +9,4 @@ const (
 var mediaTypes = []string{"jpg", "mp4"}
 
 var quiet bool
+var maxStoryNum uint16
