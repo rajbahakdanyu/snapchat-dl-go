@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 )
 
@@ -52,16 +53,21 @@ func fetchStories(userName string) (UserProfile, []SnapList, []CuratedHighlights
 }
 
 func runRoot(cmd *cobra.Command, args []string) {
+	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 	for _, userName := range args {
 		if !quiet {
 			fmt.Printf("Fetching data for %s\n", userName)
+			s.Start()
 		}
 
 		_, stories, _, _ := fetchStories(userName)
 
+		s.FinalMSG = fmt.Sprintf("Downloaded %d stories for %s\n", len(stories), userName)
+
 		if len(stories) == 0 {
-			fmt.Printf("%s has no stories\n", userName)
-			return
+			s.FinalMSG = fmt.Sprintf("%s has no stories\n", userName)
+			s.Stop()
+			continue
 		}
 
 		var wg sync.WaitGroup
@@ -73,11 +79,8 @@ func runRoot(cmd *cobra.Command, args []string) {
 			}(story)
 		}
 		wg.Wait()
-		if !quiet {
-			fmt.Printf("Downloaded %d stories for %s\n", len(stories), userName)
-		}
+		s.Stop()
 	}
-
 }
 
 func downloadStory(story SnapList, userName string) {
