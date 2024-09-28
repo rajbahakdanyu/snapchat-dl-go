@@ -80,6 +80,8 @@ func runRoot(cmd *cobra.Command, args []string) {
 				defer wg.Done()
 				downloadStory(s, userName)
 			}(stories[i])
+
+			time.Sleep(time.Duration(sleepInterval) * time.Second)
 		}
 		wg.Wait()
 
@@ -100,17 +102,15 @@ func downloadStory(story SnapList, userName string) {
 	checkError(err)
 
 	filePath := filepath.Join(directory, userName, dateStr, filename)
-	downloadMedia(mediaUrl, filePath, 0)
+	downloadMedia(mediaUrl, filePath)
 }
 
-func downloadMedia(url, destination string, interval int) {
+func downloadMedia(url, destination string) {
 	dir := filepath.Dir(destination)
 	if dir != "" {
 		err := os.MkdirAll(dir, 0755)
 		checkError(err)
 	}
-
-	time.Sleep(time.Duration(interval) * time.Second)
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Get(url)
