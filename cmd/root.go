@@ -11,6 +11,8 @@ func init() {
 	rootCmd.Flags().Uint16VarP(&sleepInterval, "sleep-interval", "n", 1, "Sleep between downloads in seconds. (Default: 1s)")
 	rootCmd.Flags().Uint16VarP(&maxWorkers, "max-workers", "j", 0, "Set maximum number of parallel downloads.")
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.SetHelpTemplate(helpTemplate)
+	rootCmd.SetUsageTemplate(helpTemplate)
 }
 
 func Execute() {
