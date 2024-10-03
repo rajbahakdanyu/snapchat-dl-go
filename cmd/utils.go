@@ -56,9 +56,10 @@ func runRoot(cmd *cobra.Command, args []string) {
 	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 	for _, userName := range args {
 		if !quiet {
-			fmt.Printf("Fetching data for %s\n", userName)
-			s.Start()
+			s.Prefix = fmt.Sprintf("Fetching stories for %s ", userName)
 		}
+
+		s.Start()
 
 		_, stories, _, _ := fetchStories(userName)
 
@@ -92,7 +93,9 @@ func runRoot(cmd *cobra.Command, args []string) {
 		}
 		wg.Wait()
 
-		s.FinalMSG = fmt.Sprintf("Downloaded %d stories for %s\n", numOfStories, userName)
+		if !quiet {
+			s.FinalMSG = fmt.Sprintf("Downloaded %d stories for %s\n", numOfStories, userName)
+		}
 		s.Stop()
 	}
 }
