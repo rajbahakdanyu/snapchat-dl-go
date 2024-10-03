@@ -133,7 +133,6 @@ func downloadMedia(url, destination string) {
 	}
 
 	if fileExists(destination, resp.ContentLength) {
-		fmt.Printf("File already exists: %s\n", destination)
 		return
 	}
 
